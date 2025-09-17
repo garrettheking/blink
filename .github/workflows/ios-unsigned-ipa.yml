@@ -1,0 +1,66 @@
+name: iOS Unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ raw ]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: List Xcode
+        run: xcodebuild -version
+      - name: Show schemes (sanity check)
+        run: xcodebuild -list
+      - name: Build (no signing)
+        run: |
+          SCHEME="Blink"
+          WORKSPACE="Blink.xcworkspace"
+          CONFIG="Release"
+          SDK="iphoneos"
+          DERIVED="build"
+          if [ -f "$WORKSPACE" ]; then
+            xcodebuild \
+              -workspace "$WORKSPACE" \
+              -scheme "$SCHEME" \
+              -configuration "$CONFIG" \
+              -sdk "$SDK" \
+              -derivedDataPath "$DERIVED" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGNING_IDENTITY="" \
+              build
+          else
+            PROJECT=$(ls *.xcodeproj | head -n1)
+            xcodebuild \
+              -project "$PROJECT" \
+              -scheme "$SCHEME" \
+              -configuration "$CONFIG" \
+              -sdk "$SDK" \
+              -derivedDataPath "$DERIVED" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGNING_IDENTITY="" \
+              build
+          fi
+      - name: Package IPA
+        run: |
+          PRODUCTS="build/Build/Products/Release-iphoneos"
+          APP_PATH=$(ls -d "$PRODUCTS"/*.app | head -n1)
+          if [ ! -d "$APP_PATH" ]; then
+            echo "No .app found in $PRODUCTS"; exit 1
+          fi
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          /usr/bin/zip -qry app-unsigned.ipa Payload
+          rm -rf Payload
+          echo "Created app-unsigned.ipa"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-ipa
+          path: app-unsigned.ipa
+          retention-days: 7
