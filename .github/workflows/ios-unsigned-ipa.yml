@@ -34,7 +34,7 @@ jobs:
               CODE_SIGNING_IDENTITY="" \
               build
           else
-            PROJECT=$(ls *.xcodeproj | head -n1)
+         PROJECT="Blink.xcodeproj"
             xcodebuild \
               -project "$PROJECT" \
               -scheme "$SCHEME" \
